@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  # ─── Base de datos MySQL ──────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: 9drive-mcp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-9drive_mcp}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── 9Drive MCP Server ────────────────────────────────
+  mcp-server:
+    build: .
+    container_name: 9drive-mcp-server
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "mysql://root:${MYSQL_ROOT_PASSWORD:-root}@mysql:3306/${MYSQL_DATABASE:-9drive_mcp}"
+      MCP_TRANSPORT: ${MCP_TRANSPORT:-sse}
+      MCP_PORT: ${MCP_PORT:-3500}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3500/oauth/google/callback}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-cambia-esta-clave-de-32-chars!!}
+      UPLOAD_POLICY: ${UPLOAD_POLICY:-most-available}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-5368709120}
+    ports:
+      - "${MCP_PORT:-3500}:${MCP_PORT:-3500}"
+
+volumes:
+  mysql_data:
